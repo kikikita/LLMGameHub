@@ -20,12 +20,14 @@ async def process_step(
     - step: "choose" — пользователь делает выбор
     """
     logger.info(f"[Runner] Step: {step}, user: {user_hash}")
+    logger.debug(f"[Runner] Building graph_state for {user_hash}: step={step}")
 
     # Формируем начальное состояние для графа
     graph_state = {
         "user_hash": user_hash,
         "step": step,
     }
+    logger.debug(f"[Runner] Initial graph_state: {graph_state}")
     if step == "start":
         assert setting and character and genre, "Необходимы setting, character, genre"
         graph_state.update({
@@ -39,11 +41,14 @@ async def process_step(
 
     # Запускаем граф (асинхронно, один проход)
     async for final_state in llm_game_graph.astream(graph_state):
-            pass
+        logger.debug(f"[Runner] Intermediate state: {final_state}")
+        pass
 
     # Возвращаем всё нужное для UI (сцена, варианты, ассеты, ending)
     user_state: UserState = get_user_state(user_hash)
     response = {}
+
+    logger.debug(f"[Runner] Final state after graph: {final_state}")
 
     if final_state.get("ending", {}).get("ending_reached"):
         response["ending"] = final_state["ending"]["ending"]
