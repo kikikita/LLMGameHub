@@ -100,12 +100,15 @@ async def node_player_step(state: GraphState) -> GraphState:
     scene_id = user_state.current_scene_id
     logger.info(f"[Graph] Player step for {user_hash}, choice: {choice_text}, scene: {scene_id}")
 
-    # 1. Сохраняем выбор пользователя в state
-    await update_state_with_choice.ainvoke({
-        "user_hash": user_hash,
-        "scene_id": scene_id,
-        "choice_text": choice_text,
-    })
+    if choice_text is not None:
+        # 1. Сохраняем выбор пользователя в state
+        await update_state_with_choice.ainvoke({
+            "user_hash": user_hash,
+            "scene_id": scene_id,
+            "choice_text": choice_text,
+        })
+    else:
+        logger.warning("[Graph] player_step called without choice_text")
 
     # 2. Проверяем, достигнута ли концовка
     ending = await check_ending.ainvoke({"user_hash": user_hash})
@@ -166,8 +169,8 @@ def build_llm_game_graph():
         }
     )
 
-    # После инициализации — всегда переход к первому ходу игрока
-    graph.add_edge("init_game", "player_step")
+    # После инициализации завершаем шаг, чтобы пользователь увидел первую сцену
+    graph.add_edge("init_game", END)
 
     # Ветвление после каждого шага игрока: если ending — завершаем, иначе цикл
     graph.add_conditional_edges(
