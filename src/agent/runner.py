@@ -49,7 +49,12 @@ async def process_step(
         response["ending"] = final_state["ending"]["ending"]
         response["game_over"] = True
     else:
-        current_scene = final_state.get("scene")
+        # Берём актуальную сцену из состояния пользователя,
+        # чтобы гарантировать наличие сгенерированных ассетов
+        if user_state.current_scene_id and user_state.current_scene_id in user_state.scenes:
+            current_scene = user_state.scenes[user_state.current_scene_id].dict()
+        else:
+            current_scene = final_state.get("scene")
         response["scene"] = current_scene
         response["game_over"] = False
         # Для UI: можно вернуть пути до ассетов, варианты, текст сцены и пр.

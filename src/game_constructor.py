@@ -2,9 +2,7 @@ import gradio as gr
 import json
 import uuid
 from game_setting import Character, GameSetting
-from game_state import story, state, get_current_scene
-from agent.llm_agent import process_user_input
-from images.image_generator import generate_image
+from agent.runner import process_step
 from audio.audio_generator import start_music_generation
 import asyncio
 
@@ -142,45 +140,21 @@ async def start_game_with_settings(
 
     game_setting = GameSetting(character=character, setting=setting_desc, genre=genre)
 
-    # Initialize the game story with the custom settings
-    initial_story = f"""Welcome to your story, {game_setting.character.name}!
+    # Запускаем LLM-граф для инициализации истории
+    result = await process_step(
+        user_hash=user_hash,
+        step="start",
+        setting=game_setting.setting,
+        character=game_setting.character.model_dump(),
+        genre=game_setting.genre,
+    )
 
-Setting: {game_setting.setting}
+    asyncio.create_task(start_music_generation(user_hash, "neutral"))
 
-You are {game_setting.character.name}, a {game_setting.character.age}-year-old character. {game_setting.character.background}
-
-Your personality: {game_setting.character.personality}
-
-Genre: {game_setting.genre}
-
-You find yourself at the beginning of your adventure. The world around you feels alive with possibilities. What do you choose to do first?
-
-NOTE FOR THE ASSISTANT: YOU HAVE TO GENERATE THE IMAGE FOR THE START SCENE.
-"""
-
-    response = await process_user_input(initial_story)
-    
-    music_tone = response.change_music.music_description or "neutral"
-    
-    asyncio.create_task(start_music_generation(user_hash, music_tone))
-
-    img = "forest.jpg"
-    
-    if response.change_scene.change_scene:
-        img_path, _ = await generate_image(response.change_scene.scene_description)
-        if img_path:
-            img = img_path
-
-    story["start"] = {
-        "text": response.game_message,
-        "image": img,
-        "choices": [option.option_description for option in response.player_options],
-        "music_tone": response.change_music.music_description,
-    }
-    state["scene"] = "start"
-
-    # Get the current scene data
-    scene_text, scene_image, scene_choices = get_current_scene()
+    scene = result["scene"]
+    scene_text = scene["description"]
+    scene_image = scene.get("image", "")
+    scene_choices = [ch["text"] for ch in scene.get("choices", [])]
 
     return (
         gr.update(visible=False),  # loading indicator
