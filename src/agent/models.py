@@ -24,9 +24,26 @@ class StoryFrame(BaseModel):
     genre: str
 
 
+class StoryFrameLLM(BaseModel):
+    """Output structure returned by the LLM for story frame generation."""
+    lore: str
+    goal: str
+    milestones: List[Milestone]
+    endings: List[Ending]
+
+
+
 class SceneChoice(BaseModel):
     text: str
     next_scene_short_desc: str
+
+
+class PlayerOption(BaseModel):
+    option_description: str = Field(
+        description=(
+            "The description of the option, Examples: [Change location] Go to the forest; [Say] Hello!"
+        )
+    )
 
 
 class Scene(BaseModel):
@@ -35,6 +52,18 @@ class Scene(BaseModel):
     choices: List[SceneChoice]
     image: Optional[str] = None
     music: Optional[str] = None
+
+
+class SceneLLM(BaseModel):
+    """Structure expected from the LLM when generating a scene."""
+    description: str
+    choices: List[SceneChoice]
+
+
+class EndingCheckResult(BaseModel):
+    """Result returned from the LLM when checking for an ending."""
+    ending_reached: bool = Field(default=False)
+    ending: Optional[Ending] = None
 
 
 class UserChoice(BaseModel):
