@@ -74,7 +74,7 @@ async def node_init_game(state: GraphState) -> GraphState:
     # Генерируем первую сцену
     first_scene = await generate_scene.ainvoke({
         "user_hash": user_hash,
-        "last_choice": None,
+        "last_choice": "start",
     })
 
     # Генерируем ассет для первой сцены (prefetch image)
