@@ -20,7 +20,7 @@ Endings: {endings}
 Последний выбор: {last_choice}
 Сгенерируй новую сцену в формате:
 - description: короткое описание ситуации
-- choices: список из 2-3 dict {"text": ..., "next_scene_short_desc": ...}
+ - choices: список из 2-3 dict {{"text": ..., "next_scene_short_desc": ...}}
 Отвечай ТОЛЬКО JSON без пояснений.
 """
 
