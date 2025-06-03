@@ -38,6 +38,14 @@ class SceneChoice(BaseModel):
     next_scene_short_desc: str
 
 
+class PlayerOption(BaseModel):
+    option_description: str = Field(
+        description=(
+            "The description of the option, Examples: [Change location] Go to the forest; [Say] Hello!"
+        )
+    )
+
+
 class Scene(BaseModel):
     scene_id: str
     description: str
