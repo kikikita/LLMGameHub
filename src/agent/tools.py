@@ -22,6 +22,7 @@ from agent.prompts import (
 from agent.llm import create_llm
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)  # Уровень логирования для отладки
 
 
 def _err(msg: str) -> str:
@@ -44,13 +45,17 @@ async def generate_story_frame(
     """
     Генерирует рамку истории (лор, цель, milestones, endings) через LLM и сохраняет в user state.
     """
+    logger.debug(f"[Tool] Generating story frame for user: {user_hash}, setting: {setting}, character: {character}, genre: {genre}")
     llm = create_llm().with_structured_output(StoryFrameLLM)
+    logger.debug(f"[Tool] LLM initialized: {llm}")
     prompt = STORY_FRAME_PROMPT.format(
         setting=setting,
         character=character,
         genre=genre,
     )
+    logger.debug(f"[Tool] Prompt for LLM: {prompt}")
     resp: StoryFrameLLM = await llm.ainvoke(prompt)
+    logger.debug(f"[Tool] LLM response: {resp}")
     # Дополняем данными пользователя
     story_frame = StoryFrame(
         lore=resp.lore,
@@ -61,9 +66,12 @@ async def generate_story_frame(
         character=character,
         genre=genre,
     )
+    logger.debug(f"[Tool] Generated story frame: {story_frame}")
     state = get_user_state(user_hash)
+    logger.debug(f"[Tool] Current user state: {state}")
     state.story_frame = story_frame
     set_user_state(user_hash, state)
+    logger.info(f"[Tool] Story frame saved for user: {user_hash} state: {state}")
     return story_frame.dict()
 
 
@@ -75,10 +83,13 @@ async def generate_scene(
     """
     Генерирует новую сцену через LLM на основе story_frame и прогресса пользователя.
     """
+    logger.debug(f"[Tool] Generating scene for user: {user_hash}, last_choice: {last_choice}")
     state = get_user_state(user_hash)
+    logger.debug(f"[Tool] Current user state: {state}")
     if not state.story_frame:
         return _err("Story frame not initialized")
     llm = create_llm().with_structured_output(SceneLLM)
+    logger.debug(f"[Tool] LLM initialized: {llm}")
     prompt = SCENE_PROMPT.format(
         lore=state.story_frame.lore,
         goal=state.story_frame.goal,
