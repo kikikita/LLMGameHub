@@ -1,0 +1,344 @@
+import gradio as gr
+from css import custom_css, loading_css_styles
+from audio.audio_generator import (
+    update_audio,
+    change_music_tone,
+    cleanup_music_session,
+)
+import logging
+from agent.llm_agent import process_user_input
+from images.image_generator import generate_image
+import uuid
+from game_state import story, state
+from game_constructor import (
+    SETTING_SUGGESTIONS,
+    CHARACTER_SUGGESTIONS,
+    GENRE_OPTIONS,
+    load_setting_suggestion,
+    load_character_suggestion,
+    start_game_with_settings,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def return_to_constructor():
+    """Return to the game constructor interface, ensure loading is hidden."""
+    return (
+        gr.update(visible=False),  # loading_indicator
+        gr.update(visible=True),  # constructor_interface
+        gr.update(visible=False),  # game_interface
+        gr.update(visible=False),  # error_message
+    )
+
+
+async def update_scene(user_hash: str, choice):
+    logger.info(f"Updating scene with choice: {choice}")
+    if isinstance(choice, str):
+        old_scene = state["scene"]
+        new_scene = str(uuid.uuid4())
+        story[new_scene] = {
+            **story[old_scene],
+        }
+        state["scene"] = new_scene
+
+        user_story = f"""Current scene description:
+            {story[old_scene]["text"]}
+            User's choice: {choice}
+        """
+
+        response = await process_user_input(user_story)
+
+        story[new_scene]["text"] = response.game_message
+
+        story[new_scene]["choices"] = [
+            option.option_description for option in response.player_options
+        ]
+
+        if response.change_scene.change_scene:
+            img_path, _ = await generate_image(response.change_scene.scene_description)
+            if img_path:
+                story[new_scene]["image"] = img_path
+
+        if response.change_music.change_music:
+            await change_music_tone(user_hash, response.change_music.music_description)
+
+    scene = story[state["scene"]]
+    return (
+        scene["text"],
+        scene["image"],
+        gr.Radio(
+            choices=scene["choices"],
+            label="What do you choose?",
+            value=None,
+            elem_classes=["choice-buttons"],
+        ),
+    )
+
+
+def update_preview(setting, name, age, background, personality, genre):
+    """Update the configuration preview"""
+    if not any([setting, name, age, background, personality]):
+        return "Fill in the fields to see a preview..."
+
+    preview = f"""🌍 SETTING: {setting[:100]}{"..." if len(setting) > 100 else ""}
+
+👤 CHARACTER: {name} (Age: {age})
+📖 Background: {background}
+💭 Personality: {personality}
+
+🎭 GENRE: {genre}"""
+    return preview
+
+
+async def start_game_with_music(
+    user_hash: str,
+    setting_desc: str,
+    char_name: str,
+    char_age: str,
+    char_background: str,
+    char_personality: str,
+    genre: str,
+):
+    """Start the game with custom settings and initialize music"""
+    yield (
+        gr.update(visible=True),  # loading indicator
+        gr.update(),  # constructor_interface
+        gr.update(),  # game_interface
+        gr.update(),  # error_message
+        gr.update(),
+        gr.update(),
+        gr.update(),  # game components unchanged
+    )
+
+    # First, get the game interface updates
+    result = await start_game_with_settings(
+        user_hash,
+        setting_desc,
+        char_name,
+        char_age,
+        char_background,
+        char_personality,
+        genre,
+    )
+    yield result
+
+
+with gr.Blocks(
+    theme="soft",
+    title="Game Constructor & Visual Novel",
+    css=custom_css + loading_css_styles,
+) as demo:
+    # Fullscreen Loading Indicator (hidden by default)
+    with gr.Column(visible=False, elem_id="loading-indicator") as loading_indicator:
+        gr.HTML("<div class='loading-text'>🚀 Starting your adventure...</div>")
+        
+    local_storage = gr.BrowserState(str(uuid.uuid4()), "user_hash")
+
+    # Constructor Interface (visible by default)
+    with gr.Column(
+        visible=True, elem_id="constructor-interface"
+    ) as constructor_interface:
+        gr.Markdown("# 🎮 Interactive Game Constructor")
+        gr.Markdown(
+            "Create your own interactive story game by defining the setting, character, and genre!"
+        )
+
+        # Error message area
+        error_message = gr.Textbox(
+            label="⚠️ Error",
+            visible=False,
+            interactive=False,
+            elem_classes=["error-message"],
+        )
+
+        with gr.Row():
+            with gr.Column(scale=2):
+                # Setting Description Section
+                with gr.Group():
+                    gr.Markdown("## 🌍 Setting Description")
+                    setting_suggestions = gr.Dropdown(
+                        choices=["Select a suggestion..."] + SETTING_SUGGESTIONS,
+                        label="Quick Suggestions",
+                        value="Select a suggestion...",
+                        interactive=True,
+                    )
+                    setting_description = gr.Textbox(
+                        label="Describe your game setting",
+                        placeholder="Enter a detailed description of where your story takes place...",
+                        lines=4,
+                        max_lines=6,
+                    )
+
+                # Character Description Section
+                with gr.Group():
+                    gr.Markdown("## 👤 Character Description")
+                    character_suggestions = gr.Dropdown(
+                        choices=["None"]
+                        + [
+                            f"{char['name']} - {char['background'][:50]}..."
+                            for char in CHARACTER_SUGGESTIONS
+                        ],
+                        label="Character Templates",
+                        value="None",
+                        interactive=True,
+                    )
+
+                    with gr.Row():
+                        char_name = gr.Textbox(
+                            label="Character Name",
+                            placeholder="Enter character name...",
+                        )
+                        char_age = gr.Textbox(label="Age", placeholder="25")
+
+                    char_background = gr.Textbox(
+                        label="Background/Profession",
+                        placeholder="Describe your character's background, profession, or role...",
+                        lines=2,
+                    )
+                    char_personality = gr.Textbox(
+                        label="Personality & Traits",
+                        placeholder="Describe personality, quirks, motivations, fears...",
+                        lines=2,
+                    )
+
+                # Genre Selection Section
+                with gr.Group():
+                    gr.Markdown("## 🎭 Genre & Style")
+                    genre_selection = gr.Dropdown(
+                        choices=GENRE_OPTIONS,
+                        label="Choose your story genre",
+                        value=GENRE_OPTIONS[0],
+                        interactive=True,
+                    )
+
+            with gr.Column(scale=1):
+                # Preview Section
+                with gr.Group():
+                    gr.Markdown("## 📋 Configuration Preview")
+                    preview_box = gr.Textbox(
+                        label="Game Summary",
+                        lines=8,
+                        interactive=False,
+                        placeholder="Fill in the fields to see a preview...",
+                    )
+
+                with gr.Group():
+                    gr.Markdown("## 🎮 Ready to Play?")
+                    start_btn = gr.Button("▶️ Start Game", variant="primary", size="lg")
+
+    with gr.Column(visible=False, elem_id="game-interface") as game_interface:
+        gr.Markdown("# 🎮 Your Interactive Story")
+
+        with gr.Row():
+            back_btn = gr.Button("⬅️ Back to Constructor", variant="secondary")
+            gr.Markdown("### Playing your custom game!")
+
+        # Audio component for background music
+        audio_out = gr.Audio(
+            autoplay=True, streaming=True, interactive=False, visible=False
+        )
+
+        # Background image (fullscreen)
+        with gr.Column(elem_classes=["image-container"]):
+            game_image = gr.Image(type="filepath", interactive=False, show_label=False)
+
+        # Overlay content (text and buttons)
+        with gr.Column(elem_classes=["overlay-content"]):
+            game_text = gr.Textbox(
+                label="",
+                interactive=False,
+                show_label=False,
+                elem_classes=["narrative-text"],
+                lines=3,
+            )
+            game_choices = gr.Radio(
+                choices=[],
+                label="What do you choose?",
+                value=None,
+                elem_classes=["choice-buttons"],
+            )
+
+    # Event handlers for constructor interface
+    setting_suggestions.change(
+        fn=load_setting_suggestion,
+        inputs=[setting_suggestions],
+        outputs=[setting_description],
+    )
+
+    character_suggestions.change(
+        fn=load_character_suggestion,
+        inputs=[character_suggestions],
+        outputs=[char_name, char_age, char_background, char_personality],
+    )
+
+    # Update preview when any field changes
+    for component in [
+        setting_description,
+        char_name,
+        char_age,
+        char_background,
+        char_personality,
+        genre_selection,
+    ]:
+        component.change(
+            fn=update_preview,
+            inputs=[
+                setting_description,
+                char_name,
+                char_age,
+                char_background,
+                char_personality,
+                genre_selection,
+            ],
+            outputs=[preview_box],
+        )
+
+    # Interface switching handlers
+    start_btn.click(
+        fn=start_game_with_music,
+        inputs=[
+            local_storage,
+            setting_description,
+            char_name,
+            char_age,
+            char_background,
+            char_personality,
+            genre_selection,
+        ],
+        outputs=[
+            loading_indicator,
+            constructor_interface,
+            game_interface,
+            error_message,
+            game_text,
+            game_image,
+            game_choices,
+        ],
+    )
+
+    back_btn.click(
+        fn=return_to_constructor,
+        inputs=[],
+        outputs=[
+            loading_indicator,
+            constructor_interface,
+            game_interface,
+            error_message,
+        ],
+    )
+
+    game_choices.change(
+        fn=update_scene,
+        inputs=[local_storage, game_choices],
+        outputs=[game_text, game_image, game_choices],
+    )
+
+    demo.unload(cleanup_music_session)
+    demo.load(
+        fn=update_audio,
+        inputs=[local_storage],
+        outputs=[audio_out],
+    )
+
+demo.launch(ssr_mode=False)
