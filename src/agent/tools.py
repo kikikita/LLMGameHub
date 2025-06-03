@@ -3,10 +3,13 @@ from typing import Annotated, Any, Dict, List
 from agent.state import get_user_state, set_user_state
 from agent.models import (
     StoryFrame,
+    StoryFrameLLM,
     Scene,
     SceneChoice,
+    SceneLLM,
     UserChoice,
     Ending,
+    EndingCheckResult,
 )
 from images.image_generator import generate_image
 import uuid
@@ -41,15 +44,23 @@ async def generate_story_frame(
     """
     Генерирует рамку истории (лор, цель, milestones, endings) через LLM и сохраняет в user state.
     """
-    llm = create_llm()
+    llm = create_llm().with_structured_output(StoryFrameLLM)
     prompt = STORY_FRAME_PROMPT.format(
         setting=setting,
         character=character,
         genre=genre,
     )
-    resp = await llm.ainvoke(prompt)
-    # resp должен соответствовать структуре StoryFrame
-    story_frame = StoryFrame(**resp)
+    resp: StoryFrameLLM = await llm.ainvoke(prompt)
+    # Дополняем данными пользователя
+    story_frame = StoryFrame(
+        lore=resp.lore,
+        goal=resp.goal,
+        milestones=resp.milestones,
+        endings=resp.endings,
+        setting=setting,
+        character=character,
+        genre=genre,
+    )
     state = get_user_state(user_hash)
     state.story_frame = story_frame
     set_user_state(user_hash, state)
@@ -67,7 +78,7 @@ async def generate_scene(
     state = get_user_state(user_hash)
     if not state.story_frame:
         return _err("Story frame not initialized")
-    llm = create_llm()
+    llm = create_llm().with_structured_output(SceneLLM)
     prompt = SCENE_PROMPT.format(
         lore=state.story_frame.lore,
         goal=state.story_frame.goal,
@@ -76,13 +87,13 @@ async def generate_scene(
         history='; '.join(f"{c.scene_id}:{c.choice_text}" for c in state.user_choices),
         last_choice=last_choice,
     )
-    resp = await llm.ainvoke(prompt)
-    # resp должен соответствовать Scene
+    resp: SceneLLM = await llm.ainvoke(prompt)
+    # Преобразуем ответ LLM в Scene, добавив уникальный ID
     scene_id = str(uuid.uuid4())
-    choices = [SceneChoice(**ch) for ch in resp["choices"]]
+    choices = [SceneChoice(**ch.model_dump()) if hasattr(ch, 'model_dump') else SceneChoice(**ch) for ch in resp.choices]
     scene = Scene(
         scene_id=scene_id,
-        description=resp["description"],
+        description=resp.description,
         choices=choices,
         image=None,
         music=None
@@ -147,14 +158,14 @@ async def check_ending(
     state = get_user_state(user_hash)
     if not state.story_frame:
         return _err("No story frame")
-    llm = create_llm()
+    llm = create_llm().with_structured_output(EndingCheckResult)
     prompt = ENDING_CHECK_PROMPT.format(
         milestones=','.join(state.milestones_achieved),
         endings=','.join(f"{e.id}:{e.condition}" for e in state.story_frame.endings),
     )
-    resp = await llm.ainvoke(prompt)
-    if resp.get("ending_reached"):
-        ending = Ending(**resp["ending"])
+    resp: EndingCheckResult = await llm.ainvoke(prompt)
+    if resp.ending_reached and resp.ending:
+        ending = resp.ending
         state.ending = ending
         set_user_state(user_hash, state)
         return {"ending_reached": True, "ending": ending.dict()}

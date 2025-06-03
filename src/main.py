@@ -2,14 +2,11 @@ import gradio as gr
 from css import custom_css, loading_css_styles
 from audio.audio_generator import (
     update_audio,
-    change_music_tone,
     cleanup_music_session,
 )
 import logging
-from agent.llm_agent import process_user_input
-from images.image_generator import generate_image
+from agent.runner import process_step
 import uuid
-from game_state import story, state
 from game_constructor import (
     SETTING_SUGGESTIONS,
     CHARACTER_SUGGESTIONS,
@@ -34,41 +31,25 @@ def return_to_constructor():
 
 async def update_scene(user_hash: str, choice):
     logger.info(f"Updating scene with choice: {choice}")
-    if isinstance(choice, str):
-        old_scene = state["scene"]
-        new_scene = str(uuid.uuid4())
-        story[new_scene] = {
-            **story[old_scene],
-        }
-        state["scene"] = new_scene
+    if not isinstance(choice, str):
+        return gr.update(), gr.update(), gr.update()
 
-        user_story = f"""Current scene description:
-            {story[old_scene]["text"]}
-            User's choice: {choice}
-        """
+    result = await process_step(
+        user_hash=user_hash,
+        step="choose",
+        choice_text=choice,
+    )
 
-        response = await process_user_input(user_story)
+    if result.get("game_over"):
+        ending_text = result["ending"]["description"]
+        return ending_text, "", gr.Radio(choices=[], label="", value=None)
 
-        story[new_scene]["text"] = response.game_message
-
-        story[new_scene]["choices"] = [
-            option.option_description for option in response.player_options
-        ]
-
-        if response.change_scene.change_scene:
-            img_path, _ = await generate_image(response.change_scene.scene_description)
-            if img_path:
-                story[new_scene]["image"] = img_path
-
-        if response.change_music.change_music:
-            await change_music_tone(user_hash, response.change_music.music_description)
-
-    scene = story[state["scene"]]
+    scene = result["scene"]
     return (
-        scene["text"],
-        scene["image"],
+        scene["description"],
+        scene.get("image", ""),
         gr.Radio(
-            choices=scene["choices"],
+            choices=[ch["text"] for ch in scene.get("choices", [])],
             label="What do you choose?",
             value=None,
             elem_classes=["choice-buttons"],
