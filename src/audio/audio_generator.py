@@ -1,11 +1,10 @@
 import asyncio
-import google.genai as genai
+from google import genai
 from google.genai import types
 from config import settings
 import wave
 import queue
 import logging
-import gradio as gr
 import io
 import time
 

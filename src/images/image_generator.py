@@ -1,6 +1,5 @@
-import google.genai as genai
+from google import genai
 from google.genai import types
-from google.api_core import exceptions as g_exceptions
 import os
 from PIL import Image
 from io import BytesIO
@@ -10,7 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-client = genai.Client(api_key=settings.gemini_api_key.get_secret_value())
+client = genai.Client(api_key=settings.gemini_api_key.get_secret_value()).aio
 
 async def generate_image(prompt: str) -> tuple[str, str] | None:
     """
@@ -25,28 +24,22 @@ async def generate_image(prompt: str) -> tuple[str, str] | None:
     # Ensure the generated/images directory exists
     output_dir = "generated/images"
     os.makedirs(output_dir, exist_ok=True)
+    
+    logger.info(f"Generating image with prompt: {prompt}")
 
-    # --- PLACEHOLDER LOGIC -------------------------------------------------
-    placeholder_path = os.path.join(
-        os.path.dirname(__file__), "image.png"
-    )  # src/images/image.png
-
-    # ----------------------------------------------------------------------
     try:
-        response = client.models.generate_content(
+        response = await client.models.generate_content(
             model="gemini-2.0-flash-preview-image-generation",
             contents=prompt,
             config=types.GenerateContentConfig(
-                response_modalities=['TEXT', 'IMAGE']
+                response_modalities=['TEXT', 'IMAGE'],
             )
         )
 
         # Process the response parts
         image_saved = False
         for part in response.candidates[0].content.parts:
-            if part.text is not None:
-                logger.info(f"Generated text: {part.text}")
-            elif part.inline_data is not None:
+            if part.inline_data is not None:
                 # Create a filename with timestamp
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"gemini_{timestamp}.png"
@@ -63,18 +56,13 @@ async def generate_image(prompt: str) -> tuple[str, str] | None:
         if not image_saved:
             logger.error("No image was generated in the response.")
             return None, None
-    except g_exceptions.GoogleAPICallError as exc:
-        logger.warning(
-            "Gemini image generation failed (%s). "
-            "Falling back to placeholder.", exc
-        )
-        return placeholder_path, "placeholder"
+            
     except Exception as e:
         logger.error(f"Error generating image: {e}")
-        return placeholder_path, "placeholder"
+        return None, None
 
 
-def modify_image(image_path: str, modification_prompt: str) -> str | None:
+async def modify_image(image_path: str, modification_prompt: str) -> str | None:
     """
     Modify an existing image using Google's Gemini model based on a text prompt.
     
@@ -96,14 +84,14 @@ def modify_image(image_path: str, modification_prompt: str) -> str | None:
     
     key = settings.gemini_api_key.get_secret_value()
     
-    client = genai.Client(api_key=key)
+    client = genai.Client(api_key=key).aio
 
     try:
         # Load the input image
         input_image = Image.open(image_path)
         
         # Make the API call with both text and image
-        response = client.models.generate_content(
+        response = await client.models.generate_content(
             model="gemini-2.0-flash-preview-image-generation",
             contents=[modification_prompt, input_image],
             config=types.GenerateContentConfig(
@@ -114,9 +102,7 @@ def modify_image(image_path: str, modification_prompt: str) -> str | None:
         # Process the response parts
         image_saved = False
         for part in response.candidates[0].content.parts:
-            if part.text is not None:
-                logger.info(f"Generated text: {part.text}")
-            elif part.inline_data is not None:
+            if part.inline_data is not None:
                 # Create a filename with timestamp
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"gemini_modified_{timestamp}.png"
@@ -149,4 +135,4 @@ if __name__ == "__main__":
     #     modification_prompt = "Now the house is destroyed, and the jawas are running away"
     #     modified_image_path = modify_image(generated_image_path, modification_prompt)
     #     if modified_image_path:
-    #         print(f"Successfully modified image: {modified_image_path}") 
+    #         print(f"Successfully modified image: {modified_image_path}")
