@@ -1,43 +1,50 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
+"""Utility functions for working with the language model."""
+
 import logging
+from langchain_google_genai import ChatGoogleGenerativeAI
+
 from config import settings
 
 logger = logging.getLogger(__name__)
 
-_google_api_keys_list = []
-_current_google_key_idx = 0
+_API_KEYS: list[str] = []
+_current_key_idx = 0
+MODEL_NAME = "gemini-2.5-flash-preview-05-20"
 
 
-def create_llm(temperature: float = settings.temperature, top_p: float = settings.top_p):
-    global _google_api_keys_list, _current_google_key_idx
+def _get_api_key() -> str:
+    """Return an API key using round-robin selection."""
+    global _API_KEYS, _current_key_idx
 
-    if not _google_api_keys_list:
-        api_keys_str = settings.gemini_api_key.get_secret_value()
-        if api_keys_str:
-            _google_api_keys_list = [key.strip() for key in api_keys_str.split(',') if key.strip()]
-        
-        if not _google_api_keys_list:
-            logger.error("Google API keys are not configured or are empty in settings.")
-            raise ValueError("Google API keys are not configured or are invalid for round-robin.")
+    if not _API_KEYS:
+        keys_str = settings.gemini_api_key.get_secret_value()
+        if keys_str:
+            _API_KEYS = [k.strip() for k in keys_str.split(",") if k.strip()]
+        if not _API_KEYS:
+            msg = "Google API keys are not configured or invalid"
+            logger.error(msg)
+            raise ValueError(msg)
 
-    if not _google_api_keys_list: # Safeguard, though previous block should handle it.
-        logger.error("No Google API keys available for round-robin.")
-        raise ValueError("No Google API keys available for round-robin.")
+    key = _API_KEYS[_current_key_idx]
+    _current_key_idx = (_current_key_idx + 1) % len(_API_KEYS)
+    logger.debug("Using Google API key index %s", _current_key_idx)
+    return key
 
-    key_index_to_use = _current_google_key_idx
-    selected_api_key = _google_api_keys_list[key_index_to_use]
-    
-    _current_google_key_idx = (key_index_to_use + 1) % len(_google_api_keys_list)
-    
-    logger.debug(f"Using Google API key at index {key_index_to_use} (ending with ...{selected_api_key[-4:] if len(selected_api_key) > 4 else selected_api_key}) for round-robin.")
 
+def create_llm(
+    temperature: float = settings.temperature,
+    top_p: float = settings.top_p,
+) -> ChatGoogleGenerativeAI:
+    """Create a standard LLM instance."""
     return ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash-preview-05-20",
-        google_api_key=selected_api_key,
+        model=MODEL_NAME,
+        google_api_key=_get_api_key(),
         temperature=temperature,
         top_p=top_p,
-        thinking_budget=1024
+        thinking_budget=1024,
     )
 
-def create_precise_llm():
+
+def create_precise_llm() -> ChatGoogleGenerativeAI:
+    """Return an LLM tuned for deterministic output."""
     return create_llm(temperature=0, top_p=1)
