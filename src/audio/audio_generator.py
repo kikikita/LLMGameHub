@@ -1,5 +1,5 @@
 import asyncio
-from google import genai
+import google.genai as genai
 from google.genai import types
 from config import settings
 import wave
