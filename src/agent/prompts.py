@@ -9,6 +9,8 @@ Return ONLY a JSON object with:
 - goal: main player objective
 - milestones: 2-4 key events (id, description)
 - endings: good/bad endings (id, type, condition, description)
+Translate the lore, goal, milestones and endings into
+a langueage of setting language.
 """
 
 SCENE_PROMPT = """
@@ -22,6 +24,7 @@ Last choice: {last_choice}
 Respond ONLY with JSON containing:
 - description: short summary of the scene
 - choices: exactly two dicts {{"text": ..., "next_scene_short_desc": ...}}
+Translate the scene description and choices into a language of lore language.
 """
 
 ENDING_CHECK_PROMPT = """
