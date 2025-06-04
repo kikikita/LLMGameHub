@@ -42,7 +42,7 @@ async def update_scene(user_hash: str, choice):
 
     if result.get("game_over"):
         ending_text = result["ending"]["description"]
-        return ending_text, "", gr.Radio(choices=[], label="", value=None)
+        return gr.update(value=ending_text), gr.update(value=None), gr.Radio(choices=[], label="", value=None)
 
     scene = result["scene"]
     return (

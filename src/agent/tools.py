@@ -99,9 +99,13 @@ async def generate_scene(
         last_choice=last_choice,
     )
     resp: SceneLLM = await llm.ainvoke(prompt)
+    if len(resp.choices) < 2:
+        logger.warning("[Tool] LLM returned less than two choices. Regenerating scene.")
+        resp = await llm.ainvoke(prompt + "\nВарианты выбора должны быть строго два.")
+    choices_data = resp.choices[:2]
     # Преобразуем ответ LLM в Scene, добавив уникальный ID
     scene_id = str(uuid.uuid4())
-    choices = [SceneChoice(**ch.model_dump()) if hasattr(ch, 'model_dump') else SceneChoice(**ch) for ch in resp.choices]
+    choices = [SceneChoice(**ch.model_dump()) if hasattr(ch, 'model_dump') else SceneChoice(**ch) for ch in choices_data]
     scene = Scene(
         scene_id=scene_id,
         description=resp.description,
@@ -170,8 +174,9 @@ async def check_ending(
     if not state.story_frame:
         return _err("No story frame")
     llm = create_llm().with_structured_output(EndingCheckResult)
+    history = '; '.join(f"{c.scene_id}:{c.choice_text}" for c in state.user_choices)
     prompt = ENDING_CHECK_PROMPT.format(
-        milestones=','.join(state.milestones_achieved),
+        history=history,
         endings=','.join(f"{e.id}:{e.condition}" for e in state.story_frame.endings),
     )
     resp: EndingCheckResult = await llm.ainvoke(prompt)
