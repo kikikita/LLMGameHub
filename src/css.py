@@ -119,6 +119,14 @@ img {
     display: none !important;
 }
 
+/* Position the back button in the top-right corner */
+#back-btn {
+    position: fixed !important;
+    top: 10px !important;
+    right: 10px !important;
+    z-index: 20 !important;
+}
+
 /* Make form element transparent */
 .overlay-content .form {
     background: transparent !important;
