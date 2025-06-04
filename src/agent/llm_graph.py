@@ -135,7 +135,7 @@ def route_ending(state: GraphState) -> str:
     if ending.get("ending_reached", False):
         return "game_over"
     else:
-        return "player_step"
+        return "continue"
 
 # ──────────────────────────────────────────────
 # NODE: ЗАВЕРШЕНИЕ ИГРЫ (END)
@@ -172,12 +172,13 @@ def build_llm_game_graph():
     # После инициализации завершаем шаг, чтобы пользователь увидел первую сцену
     graph.add_edge("init_game", END)
 
-    # Ветвление после каждого шага игрока: если ending — завершаем, иначе цикл
+    # После хода игрока проверяем концовку: если достигнута — переходим в game_over,
+    # иначе завершаем выполнение графа и возвращаем сцену
     graph.add_conditional_edges(
         "player_step", route_ending,
         {
             "game_over": "game_over",
-            "player_step": "player_step"
+            "continue": END
         }
     )
 
