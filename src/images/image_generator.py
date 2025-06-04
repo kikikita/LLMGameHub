@@ -1,4 +1,4 @@
-from google import genai
+import google.genai as genai
 from google.genai import types
 from google.api_core import exceptions as g_exceptions
 import os

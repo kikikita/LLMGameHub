@@ -25,9 +25,10 @@ Endings: {endings}
 """
 
 ENDING_CHECK_PROMPT = """
-Milestones achieved: {milestones}
+История действий игрока: {history}
 Endings: {endings}
-Проверь, выполнены ли условия концовки. Если да, верни ending_reached: true и ending (id, type, description).
-Если нет — ending_reached: false.
+Проанализируй историю и определи, выполнены ли условия для какой-либо концовки. 
+Если ни одно условие не выполнено, верни ending_reached: false.
+Если условие выполнено, укажи ending_reached: true и верни объект ending (id, type, description).
 Отвечай ТОЛЬКО JSON без пояснений.
 """
