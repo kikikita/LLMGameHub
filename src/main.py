@@ -19,13 +19,20 @@ from game_constructor import (
 logger = logging.getLogger(__name__)
 
 
-def return_to_constructor():
-    """Return to the game constructor interface, ensure loading is hidden."""
+async def return_to_constructor(user_hash: str):
+    """Return to the constructor and reset user state and audio."""
+    from agent.state import reset_user_state
+
+    reset_user_state(user_hash)
+    await cleanup_music_session(user_hash)
+    # Generate a new hash to avoid stale state
+    new_hash = str(uuid.uuid4())
     return (
         gr.update(visible=False),  # loading_indicator
         gr.update(visible=True),  # constructor_interface
         gr.update(visible=False),  # game_interface
         gr.update(visible=False),  # error_message
+        gr.update(value=new_hash),  # local_storage
     )
 
 
@@ -41,8 +48,13 @@ async def update_scene(user_hash: str, choice):
     )
 
     if result.get("game_over"):
-        ending_text = result["ending"]["description"]
-        return gr.update(value=ending_text), gr.update(value=None), gr.Radio(choices=[], label="", value=None)
+        ending = result["ending"]
+        ending_text = ending.get("description") or ending.get("condition", "")
+        return (
+            gr.update(value=ending_text),
+            gr.update(value=None),
+            gr.Radio(choices=[], label="", value=None),
+        )
 
     scene = result["scene"]
     return (
@@ -212,8 +224,12 @@ with gr.Blocks(
         gr.Markdown("# 🎮 Your Interactive Story")
 
         with gr.Row():
-            back_btn = gr.Button("⬅️ Back to Constructor", variant="secondary")
             gr.Markdown("### Playing your custom game!")
+        back_btn = gr.Button(
+            "⬅️ Back to Constructor",
+            variant="secondary",
+            elem_id="back-btn",
+        )
 
         # Audio component for background music
         audio_out = gr.Audio(
@@ -300,12 +316,13 @@ with gr.Blocks(
 
     back_btn.click(
         fn=return_to_constructor,
-        inputs=[],
+        inputs=[local_storage],
         outputs=[
             loading_indicator,
             constructor_interface,
             game_interface,
             error_message,
+            local_storage,
         ],
     )
 

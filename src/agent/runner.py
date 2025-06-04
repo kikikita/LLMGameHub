@@ -39,7 +39,16 @@ async def process_step(
 
     ending = final_state.get("ending")
     if ending and ending.get("ending_reached"):
-        response["ending"] = ending["ending"]
+        ending_info = ending["ending"]
+        if (
+            ("description" not in ending_info or not ending_info["description"])
+            and user_state.story_frame
+        ):
+            for e in user_state.story_frame.endings:
+                if e.id == ending_info.get("id"):
+                    ending_info["description"] = e.description
+                    break
+        response["ending"] = ending_info
         response["game_over"] = True
     else:
         if (
