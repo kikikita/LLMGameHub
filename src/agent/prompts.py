@@ -1,34 +1,35 @@
 STORY_FRAME_PROMPT = """
-Ты — автор интерактивных сюжетных игр. Используй данные игрока.
+You are a narrative game designer. Use the player data below to
+create a story frame for an interactive adventure.
 Setting: {setting}
 Character: {character}
 Genre: {genre}
-Сформируй структуру JSON с ключами:
-- lore: краткое описание мира
-- goal: основная цель игрока
-- milestones: 2-4 важных события (id, description)
+Return ONLY a JSON object with:
+- lore: brief world description
+- goal: main player objective
+- milestones: 2-4 key events (id, description)
 - endings: good/bad endings (id, type, condition, description)
-Отвечай ТОЛЬКО JSON без пояснений.
 """
 
 SCENE_PROMPT = """
-Используй лор: {lore}
-Цель: {goal}
+Using the provided lore and history, generate the next scene.
+Lore: {lore}
+Goal: {goal}
 Milestones: {milestones}
 Endings: {endings}
-История: {history}
-Последний выбор: {last_choice}
-Сгенерируй новую сцену в формате:
-- description: короткое описание ситуации
-- choices: список ИМЕННО из двух dict {{"text": ..., "next_scene_short_desc": ...}}
-Отвечай ТОЛЬКО JSON без пояснений.
+History: {history}
+Last choice: {last_choice}
+Respond ONLY with JSON containing:
+- description: short summary of the scene
+- choices: exactly two dicts {{"text": ..., "next_scene_short_desc": ...}}
 """
 
 ENDING_CHECK_PROMPT = """
-История действий игрока: {history}
+History: {history}
 Endings: {endings}
-Проанализируй историю и определи, выполнены ли условия для какой-либо концовки. 
-Если ни одно условие не выполнено, верни ending_reached: false.
-Если условие выполнено, укажи ending_reached: true и верни объект ending (id, type, description).
-Отвечай ТОЛЬКО JSON без пояснений.
+Check if any ending conditions are met.
+If none are met return ending_reached: false.
+If an ending is reached return ending_reached: true and provide the
+ending object (id, type, description).
+Respond ONLY with JSON.
 """
