@@ -10,7 +10,7 @@ Return ONLY a JSON object with:
 - milestones: 2-4 key events (id, description)
 - endings: good/bad endings (id, type, condition, description)
 Translate the lore, goal, milestones and endings into
-a langueage of setting language.
+a language of setting language.
 """
 
 SCENE_PROMPT = """
@@ -21,6 +21,8 @@ Milestones: {milestones}
 Endings: {endings}
 History: {history}
 Last choice: {last_choice}
+The scene description must be 2-3 sentences and no more than 50 words.
+Each choice text must be concise, up to 7 words.
 Respond ONLY with JSON containing:
 - description: short summary of the scene
 - choices: exactly two dicts {{"text": ..., "next_scene_short_desc": ...}}
