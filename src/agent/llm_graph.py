@@ -95,11 +95,15 @@ async def node_player_step(state: GraphState) -> GraphState:
             }
         )
         change_scene = await generate_image_prompt(next_scene["description"], state.user_hash)
+        current_image = None
+        if scene_id and scene_id in user_state.scenes:
+            current_image = user_state.scenes[scene_id].image
+
         image_task = generate_scene_image.ainvoke(
             {
                 "user_hash": state.user_hash,
                 "scene_id": next_scene["scene_id"],
-                "current_image": user_state.assets[scene_id],
+                "current_image": current_image,
                 "change_scene": change_scene,
             }
         )
