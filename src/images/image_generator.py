@@ -4,7 +4,6 @@ import os
 from PIL import Image
 from io import BytesIO
 from datetime import datetime
-import uuid
 from config import settings
 import logging
 import asyncio
@@ -64,9 +63,9 @@ async def generate_image(prompt: str) -> tuple[str, str] | None:
         image_saved = False
         for part in response.candidates[0].content.parts:
             if part.inline_data is not None:
-                # Create a filename with timestamp and uuid to avoid collisions
+                # Create a filename with timestamp
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"gemini_{timestamp}_{uuid.uuid4().hex}.png"
+                filename = f"gemini_{timestamp}.png"
                 filepath = os.path.join(output_dir, filename)
 
                 # Save the image
@@ -131,9 +130,9 @@ async def modify_image(image_path: str, modification_prompt: str) -> str | None:
         image_saved = False
         for part in response.candidates[0].content.parts:
             if part.inline_data is not None:
-                # Create a filename with timestamp and uuid to avoid collisions
+                # Create a filename with timestamp
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"gemini_modified_{timestamp}_{uuid.uuid4().hex}.png"
+                filename = f"gemini_modified_{timestamp}.png"
                 filepath = os.path.join(output_dir, filename)
 
                 # Save the modified image
@@ -165,4 +164,3 @@ if __name__ == "__main__":
     #     modified_image_path = modify_image(generated_image_path, modification_prompt)
     #     if modified_image_path:
     #         print(f"Successfully modified image: {modified_image_path}")
-

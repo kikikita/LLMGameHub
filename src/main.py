@@ -61,8 +61,7 @@ async def update_scene(user_hash: str, choice):
         return (
             gr.update(value=ending_text),
             gr.update(value=ending_image),
-            gr.Dropdown(choices=[], label="", value=None, visible=False,
-                        allow_custom_value=True),
+            gr.Radio(choices=[], label="", value=None, visible=False),
             gr.update(value="", visible=False),
         )
 
@@ -70,11 +69,10 @@ async def update_scene(user_hash: str, choice):
     return (
         scene["description"],
         scene.get("image", ""),
-        gr.Dropdown(
+        gr.Radio(
             choices=[ch["text"] for ch in scene.get("choices", [])],
             label="What do you choose? (select an option or write your own)",
             value=None,
-            allow_custom_value=True,
             elem_classes=["choice-buttons"],
         ),
         gr.update(value=""),
@@ -263,11 +261,10 @@ with gr.Blocks(
                 lines=3,
             )
             with gr.Column(elem_classes=["choice-area"]):
-                game_choices = gr.Dropdown(
+                game_choices = gr.Radio(
                     choices=[],
                     label="What do you choose? (select an option or write your own)",
                     value=None,
-                    allow_custom_value=True,
                     elem_classes=["choice-buttons"],
                 )
                 custom_choice = gr.Textbox(
