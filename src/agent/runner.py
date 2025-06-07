@@ -50,6 +50,13 @@ async def process_step(
                     ending_info["description"] = e.description
                     break
         response["ending"] = ending_info
+        if (
+            user_state.current_scene_id
+            and user_state.current_scene_id in user_state.scenes
+        ):
+            response["image"] = user_state.scenes[
+                user_state.current_scene_id
+            ].image
         response["game_over"] = True
     else:
         if (
