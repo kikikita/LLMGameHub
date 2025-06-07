@@ -136,6 +136,7 @@ async def start_game_with_settings(
             gr.update(),
             gr.update(),
             gr.update(),  # game components unchanged
+            gr.update(),  # custom choice
         )
 
     character = Character(
@@ -146,7 +147,7 @@ async def start_game_with_settings(
     )
 
     game_setting = GameSetting(character=character, setting=setting_desc, genre=genre)
-    
+
     asyncio.create_task(start_music_generation(user_hash, "neutral"))
 
     # Запускаем LLM-граф для инициализации истории
@@ -171,4 +172,5 @@ async def start_game_with_settings(
         gr.update(value=scene_text),  # game_text
         gr.update(value=scene_image),  # game_image
         gr.update(choices=scene_choices, value=None),  # game_choices
+        gr.update(value="", visible=True),  # custom choice
     )

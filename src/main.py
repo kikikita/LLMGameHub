@@ -44,7 +44,7 @@ async def return_to_constructor(user_hash: str):
 async def update_scene(user_hash: str, choice):
     logger.info(f"Updating scene with choice: {choice}")
     if not isinstance(choice, str):
-        return gr.update(), gr.update(), gr.update()
+        return gr.update(), gr.update(), gr.update(), gr.update()
 
     result = await process_step(
         user_hash=user_hash,
@@ -58,7 +58,8 @@ async def update_scene(user_hash: str, choice):
         return (
             gr.update(value=ending_text),
             gr.update(value=None),
-            gr.Radio(choices=[], label="", value=None),
+            gr.Radio(choices=[], label="", value=None, visible=False),
+            gr.update(value="", visible=False),
         )
 
     scene = result["scene"]
@@ -71,6 +72,7 @@ async def update_scene(user_hash: str, choice):
             value=None,
             elem_classes=["choice-buttons"],
         ),
+        gr.update(value=""),
     )
 
 
@@ -107,6 +109,7 @@ async def start_game_with_music(
         gr.update(),
         gr.update(),
         gr.update(),  # game components unchanged
+        gr.update(),  # custom choice unchanged
     )
 
     # First, get the game interface updates
@@ -260,6 +263,12 @@ with gr.Blocks(
                 value=None,
                 elem_classes=["choice-buttons"],
             )
+            custom_choice = gr.Textbox(
+                label="Your own choice",
+                placeholder="Type your option and press Enter",
+                lines=1,
+                elem_classes=["custom-choice"],
+            )
 
     # Event handlers for constructor interface
     setting_suggestions.change(
@@ -316,6 +325,7 @@ with gr.Blocks(
             game_text,
             game_image,
             game_choices,
+            custom_choice,
         ],
     )
 
@@ -334,7 +344,13 @@ with gr.Blocks(
     game_choices.change(
         fn=update_scene,
         inputs=[local_storage, game_choices],
-        outputs=[game_text, game_image, game_choices],
+        outputs=[game_text, game_image, game_choices, custom_choice],
+    )
+
+    custom_choice.submit(
+        fn=update_scene,
+        inputs=[local_storage, custom_choice],
+        outputs=[game_text, game_image, game_choices, custom_choice],
     )
 
     demo.unload(cleanup_music_session)
