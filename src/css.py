@@ -100,6 +100,17 @@ img {
     color: white !important;
 }
 
+/* Style the custom choice textbox */
+.custom-choice textarea {
+    background: rgba(0,0,0,0.7) !important;
+    border: 1px solid rgba(255,255,255,0.5) !important;
+    color: white !important;
+    border-radius: 10px !important;
+}
+.custom-choice {
+    margin-top: 10px !important;
+}
+
 .choice-buttons label span {
     color: white !important;
 }
