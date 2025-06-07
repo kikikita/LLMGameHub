@@ -3,6 +3,10 @@
 import logging
 from dataclasses import asdict
 from typing import Dict, Optional
+import uuid
+
+from agent.image_agent import generate_image_prompt
+from agent.tools import generate_scene_image
 
 from agent.llm_graph import GraphState, llm_game_graph
 from agent.models import UserState
@@ -41,22 +45,24 @@ async def process_step(
     if ending and ending.get("ending_reached"):
         ending_info = ending["ending"]
         if (
-            ("description" not in ending_info
-                or not ending_info["description"])
+            ("description" not in ending_info or not ending_info["description"])
             and user_state.story_frame
         ):
             for e in user_state.story_frame.endings:
                 if e.id == ending_info.get("id"):
                     ending_info["description"] = e.description
                     break
+
+        ending_desc = ending_info.get("description") or ending_info.get("condition", "")
+        change_scene = await generate_image_prompt(ending_desc, user_hash)
+        image_path = await generate_scene_image(
+            user_hash=user_hash,
+            scene_id=f"ending_{uuid.uuid4()}",
+            change_scene=change_scene,
+        )
+
         response["ending"] = ending_info
-        if (
-            user_state.current_scene_id
-            and user_state.current_scene_id in user_state.scenes
-        ):
-            response["image"] = user_state.scenes[
-                user_state.current_scene_id
-            ].image
+        response["image"] = image_path
         response["game_over"] = True
     else:
         if (

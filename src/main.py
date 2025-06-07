@@ -54,7 +54,9 @@ async def update_scene(user_hash: str, choice):
 
     if result.get("game_over"):
         ending = result["ending"]
-        ending_text = ending.get("description") or ending.get("condition", "")
+        ending_text = (
+            ending.get("description") or ending.get("condition", "")
+        ) + "\n[THE END]"
         ending_image = result.get("image")
         return (
             gr.update(value=ending_text),
