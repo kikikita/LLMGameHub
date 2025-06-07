@@ -55,10 +55,12 @@ async def process_step(
 
         ending_desc = ending_info.get("description") or ending_info.get("condition", "")
         change_scene = await generate_image_prompt(ending_desc, user_hash)
-        image_path = await generate_scene_image(
-            user_hash=user_hash,
-            scene_id=f"ending_{uuid.uuid4()}",
-            change_scene=change_scene,
+        image_path = await generate_scene_image.ainvoke(
+            {
+                "user_hash": user_hash,
+                "scene_id": f"ending_{uuid.uuid4()}",
+                "change_scene": change_scene,
+            }
         )
 
         response["ending"] = ending_info
