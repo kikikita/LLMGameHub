@@ -7,14 +7,16 @@ import queue
 import logging
 import io
 import time
+from threading import Lock
 
 logger = logging.getLogger(__name__)
 
 client = genai.Client(api_key=settings.gemini_api_key.get_secret_value(), http_options={'api_version': 'v1alpha'})
 
 async def generate_music(user_hash: str, music_tone: str, receive_audio):
-    if user_hash in sessions:
-        return
+    with _SESSIONS_LOCK:
+        if user_hash in sessions:
+            return
     async with (
         client.aio.live.music.connect(model='models/lyria-realtime-exp') as session,
         asyncio.TaskGroup() as tg,
@@ -32,15 +34,19 @@ async def generate_music(user_hash: str, music_tone: str, receive_audio):
           config=types.LiveMusicGenerationConfig(bpm=90, temperature=1.0)
         )
         await session.play()
-        logger.info(f"Started music generation for user hash {user_hash}, music tone: {music_tone}")
-        sessions[user_hash] = {
-            'session': session,
-            'queue': queue.Queue()
-        }
+        logger.info(
+            f"Started music generation for user hash {user_hash}, music tone: {music_tone}"
+        )
+        with _SESSIONS_LOCK:
+            sessions[user_hash] = {
+                'session': session,
+                'queue': queue.Queue()
+            }
         
 async def change_music_tone(user_hash: str, new_tone):
     logger.info(f"Changing music tone to {new_tone}")
-    session = sessions.get(user_hash, {}).get('session')
+    with _SESSIONS_LOCK:
+        session = sessions.get(user_hash, {}).get('session')
     if not session:
         logger.error(f"No session found for user hash {user_hash}")
         return
@@ -69,27 +75,36 @@ async def receive_audio(session, user_hash):
             break
 
 sessions = {}
+_SESSIONS_LOCK = Lock()
 
 async def start_music_generation(user_hash: str, music_tone: str):
     """Start the music generation in a separate thread."""
     await generate_music(user_hash, music_tone, receive_audio)
-    
+
 async def cleanup_music_session(user_hash: str):
-    if user_hash in sessions:
+    with _SESSIONS_LOCK:
+        session_info = sessions.get(user_hash)
+        if not session_info:
+            return
         logger.info(f"Cleaning up music session for user hash {user_hash}")
-        session = sessions[user_hash]['session']
-        await session.stop()
-        await session.close()
+        session = session_info['session']
+        try:
+            await session.stop()
+            await session.close()
+        except Exception as exc:  # noqa: BLE001
+            logger.error(f"Error closing music session: {exc}")
         del sessions[user_hash]
     
 
 def update_audio(user_hash):
     """Continuously stream audio from the queue as WAV bytes."""
     while True:
-        if user_hash not in sessions:
+        with _SESSIONS_LOCK:
+            session_info = sessions.get(user_hash)
+        if not session_info:
             time.sleep(0.5)
             continue
-        queue = sessions[user_hash]['queue']
+        queue = session_info['queue']
         pcm_data = queue.get() # This is raw PCM audio bytes
         
         if not isinstance(pcm_data, bytes):

@@ -28,7 +28,7 @@ async def return_to_constructor(user_hash: str):
     """Return to the constructor and reset user state and audio."""
     from agent.state import reset_user_state
 
-    reset_user_state(user_hash)
+    await reset_user_state(user_hash)
     await cleanup_music_session(user_hash)
     # Generate a new hash to avoid stale state
     new_hash = str(uuid.uuid4())
@@ -71,8 +71,7 @@ async def update_scene(user_hash: str, choice):
         scene.get("image", ""),
         gr.Radio(
             choices=[ch["text"] for ch in scene.get("choices", [])],
-            label="What do you choose? (select an option or write your own)",
-            value=None,
+            label="What do you choose?", value=None,
             elem_classes=["choice-buttons"],
         ),
         gr.update(value=""),
@@ -263,7 +262,7 @@ with gr.Blocks(
             with gr.Column(elem_classes=["choice-area"]):
                 game_choices = gr.Radio(
                     choices=[],
-                    label="What do you choose? (select an option or write your own)",
+                    label="What do you choose?",
                     value=None,
                     elem_classes=["choice-buttons"],
                 )
