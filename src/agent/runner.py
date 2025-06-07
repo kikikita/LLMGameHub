@@ -53,8 +53,19 @@ async def process_step(
                     ending_info["description"] = e.description
                     break
 
-        ending_desc = ending_info.get("description") or ending_info.get("condition", "")
+        ending_desc = ending_info.get("description") or ending_info.get(
+            "condition", ""
+        )
         change_scene = await generate_image_prompt(ending_desc, user_hash)
+        # Ensure the ending always has an image. The image agent may occasionally
+        # decide that no scene change is required, which would result in no
+        # image generation. For endings we always want an image, so override the
+        # decision if needed.
+        if change_scene.change_scene == "no_change":
+            change_scene.change_scene = "change_completely"
+            if not change_scene.scene_description:
+                change_scene.scene_description = ending_desc
+
         image_path = await generate_scene_image.ainvoke(
             {
                 "user_hash": user_hash,
