@@ -53,9 +53,9 @@ async def generate_story_frame(
         character=character,
         genre=genre,
     )
-    state = get_user_state(user_hash)
+    state = await get_user_state(user_hash)
     state.story_frame = story_frame
-    set_user_state(user_hash, state)
+    await set_user_state(user_hash, state)
     return story_frame.dict()
 
 
@@ -65,7 +65,7 @@ async def generate_scene(
     last_choice: Annotated[str, "Last user choice"],
 ) -> Annotated[Dict, "Generated scene"]:
     """Generate a new scene based on the current user state."""
-    state = get_user_state(user_hash)
+    state = await get_user_state(user_hash)
     if not state.story_frame:
         return _err("Story frame not initialized")
     llm = create_llm().with_structured_output(SceneLLM)
@@ -98,7 +98,7 @@ async def generate_scene(
     )
     state.current_scene_id = scene_id
     state.scenes[scene_id] = scene
-    set_user_state(user_hash, state)
+    await set_user_state(user_hash, state)
     return scene.dict()
 
 
@@ -119,10 +119,10 @@ async def generate_scene_image(
                 # for now always modify the image to avoid the generating an update in a completely wrong style
                 else modify_image(current_image, change_scene.scene_description)
             )
-        state = get_user_state(user_hash)
+        state = await get_user_state(user_hash)
         if scene_id in state.scenes:
             state.scenes[scene_id].image = image_path
-        set_user_state(user_hash, state)
+        await set_user_state(user_hash, state)
         return image_path
     except Exception as exc:  # noqa: BLE001
         return _err(str(exc))
@@ -137,7 +137,7 @@ async def update_state_with_choice(
     """Record the player's choice in the state."""
     import datetime
 
-    state = get_user_state(user_hash)
+    state = await get_user_state(user_hash)
     state.user_choices.append(
         UserChoice(
             scene_id=scene_id,
@@ -145,7 +145,7 @@ async def update_state_with_choice(
             timestamp=datetime.datetime.utcnow().isoformat(),
         )
     )
-    set_user_state(user_hash, state)
+    await set_user_state(user_hash, state)
     return state.dict()
 
 
@@ -154,7 +154,7 @@ async def check_ending(
     user_hash: Annotated[str, "User session ID"],
 ) -> Annotated[Dict, "Ending check result"]:
     """Check whether an ending has been reached."""
-    state = get_user_state(user_hash)
+    state = await get_user_state(user_hash)
     if not state.story_frame:
         return _err("No story frame")
     llm = create_llm().with_structured_output(EndingCheckResult)
@@ -166,6 +166,6 @@ async def check_ending(
     resp: EndingCheckResult = await llm.ainvoke(prompt)
     if resp.ending_reached and resp.ending:
         state.ending = resp.ending
-        set_user_state(user_hash, state)
+        await set_user_state(user_hash, state)
         return {"ending_reached": True, "ending": resp.ending.dict()}
     return {"ending_reached": False}

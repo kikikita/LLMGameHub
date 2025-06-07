@@ -75,7 +75,7 @@ async def node_init_game(state: GraphState) -> GraphState:
 
 async def node_player_step(state: GraphState) -> GraphState:
     logger.debug("[Graph] node_player_step state: %s", state)
-    user_state = get_user_state(state.user_hash)
+    user_state = await get_user_state(state.user_hash)
     scene_id = user_state.current_scene_id
     if state.choice_text:
         await update_state_with_choice.ainvoke(

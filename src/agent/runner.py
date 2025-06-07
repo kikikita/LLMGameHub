@@ -38,7 +38,7 @@ async def process_step(
 
     final_state = await llm_game_graph.ainvoke(asdict(graph_state))
 
-    user_state: UserState = get_user_state(user_hash)
+    user_state: UserState = await get_user_state(user_hash)
     response: Dict = {}
 
     ending = final_state.get("ending")
