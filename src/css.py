@@ -100,14 +100,21 @@ img {
     color: white !important;
 }
 
+/* Container for radio options and custom text input */
+.choice-area {
+    background: rgba(0,0,0,0.7) !important;
+    border-radius: 10px !important;
+    padding: 10px !important;
+}
+
 /* Style the custom choice textbox */
-.custom-choice textarea {
+.choice-input textarea {
     background: rgba(0,0,0,0.7) !important;
     border: 1px solid rgba(255,255,255,0.5) !important;
     color: white !important;
     border-radius: 10px !important;
 }
-.custom-choice {
+.choice-input {
     margin-top: 10px !important;
 }
 
