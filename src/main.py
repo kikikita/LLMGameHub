@@ -68,7 +68,7 @@ async def update_scene(user_hash: str, choice):
         scene.get("image", ""),
         gr.Radio(
             choices=[ch["text"] for ch in scene.get("choices", [])],
-            label="What do you choose?",
+            label="What do you choose? (select an option or write your own)",
             value=None,
             elem_classes=["choice-buttons"],
         ),
@@ -257,18 +257,20 @@ with gr.Blocks(
                 elem_classes=["narrative-text"],
                 lines=3,
             )
-            game_choices = gr.Radio(
-                choices=[],
-                label="What do you choose?",
-                value=None,
-                elem_classes=["choice-buttons"],
-            )
-            custom_choice = gr.Textbox(
-                label="Your own choice",
-                placeholder="Type your option and press Enter",
-                lines=1,
-                elem_classes=["custom-choice"],
-            )
+            with gr.Column(elem_classes=["choice-area"]):
+                game_choices = gr.Radio(
+                    choices=[],
+                    label="What do you choose? (select an option or write your own)",
+                    value=None,
+                    elem_classes=["choice-buttons"],
+                )
+                custom_choice = gr.Textbox(
+                    label="",
+                    show_label=False,
+                    placeholder="Type your option and press Enter",
+                    lines=1,
+                    elem_classes=["choice-input"],
+                )
 
     # Event handlers for constructor interface
     setting_suggestions.change(
