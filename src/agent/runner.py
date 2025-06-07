@@ -10,7 +10,7 @@ from agent.tools import generate_scene_image
 
 from agent.llm_graph import GraphState, llm_game_graph
 from agent.models import UserState
-from agent.state import get_user_state
+from agent.redis_state import get_user_state
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ async def process_step(
 
     final_state = await llm_game_graph.ainvoke(asdict(graph_state))
 
-    user_state: UserState = get_user_state(user_hash)
+    user_state: UserState = await get_user_state(user_hash)
     response: Dict = {}
 
     ending = final_state.get("ending")

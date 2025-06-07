@@ -26,9 +26,9 @@ logger = logging.getLogger(__name__)
 
 async def return_to_constructor(user_hash: str):
     """Return to the constructor and reset user state and audio."""
-    from agent.state import reset_user_state
+    from agent.redis_state import reset_user_state
 
-    reset_user_state(user_hash)
+    await reset_user_state(user_hash)
     await cleanup_music_session(user_hash)
     # Generate a new hash to avoid stale state
     new_hash = str(uuid.uuid4())
