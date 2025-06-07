@@ -3,8 +3,9 @@
 import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
-
+import asyncio
 from langgraph.graph import END, StateGraph
+from agent.image_agent import generate_image_prompt
 
 from agent.tools import (
     check_ending,
@@ -14,7 +15,7 @@ from agent.tools import (
     update_state_with_choice,
 )
 from agent.state import get_user_state
-
+from audio.audio_generator import change_music_tone
 logger = logging.getLogger(__name__)
 
 
@@ -59,11 +60,13 @@ async def node_init_game(state: GraphState) -> GraphState:
     first_scene = await generate_scene.ainvoke(
         {"user_hash": state.user_hash, "last_choice": "start"}
     )
+    change_scene = await generate_image_prompt(first_scene["description"], state.user_hash)
+    logger.info(f"Change scene: {change_scene}")
     await generate_scene_image.ainvoke(
         {
             "user_hash": state.user_hash,
             "scene_id": first_scene["scene_id"],
-            "prompt": first_scene["description"],
+            "change_scene": change_scene,
         }
     )
     state.scene = first_scene
@@ -91,13 +94,17 @@ async def node_player_step(state: GraphState) -> GraphState:
                 "last_choice": state.choice_text,
             }
         )
-        await generate_scene_image.ainvoke(
+        change_scene = await generate_image_prompt(next_scene["description"], state.user_hash)
+        image_task = generate_scene_image.ainvoke(
             {
                 "user_hash": state.user_hash,
                 "scene_id": next_scene["scene_id"],
-                "prompt": next_scene["description"],
+                "current_image": user_state.assets[scene_id],
+                "change_scene": change_scene,
             }
         )
+        music_task = change_music_tone(state.user_hash, next_scene["music"])
+        await asyncio.gather(image_task, music_task)
         state.scene = next_scene
     return state
 

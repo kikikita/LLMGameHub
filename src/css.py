@@ -33,11 +33,11 @@ custom_css = """
     background: rgba(0,0,0,0.7) !important;
     border: none !important;
     color: white !important;
-    font-size: 18px !important;
+    font-size: 15px !important;
     line-height: 1.5 !important;
-    padding: 20px !important;
+    padding: 10px !important;
     border-radius: 10px !important;
-    margin-bottom: 20px !important;
+    margin-bottom: 10px !important;
 }
 
 img {
@@ -49,7 +49,7 @@ img {
     border: none !important;
     color: white !important;
     -webkit-text-fill-color: white !important;
-    font-size: 18px !important;
+    font-size: 15px !important;
     resize: none !important;
 }
 
@@ -57,13 +57,12 @@ img {
 .choice-buttons {
     background: rgba(0,0,0,0.7) !important;
     border-radius: 10px !important;
-    padding: 15px !important;
+    padding: 10px !important;
 }
 
 .choice-buttons label {
     color: white !important;
-    font-size: 16px !important;
-    margin-bottom: 10px !important;
+    font-size: 14px !important;
 }
 
 /* Fix radio button backgrounds */

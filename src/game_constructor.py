@@ -1,10 +1,16 @@
 import gradio as gr
 import json
 import uuid
+from game_setting import Character, GameSetting, get_user_story
+from game_state import story, state, get_current_scene
+from agent.llm_agent import process_user_input
+from images.image_generator import generate_image
 from game_setting import Character, GameSetting
 from agent.runner import process_step
 from audio.audio_generator import start_music_generation
 import asyncio
+from config import settings
+
 
 # Predefined suggestions for demo
 SETTING_SUGGESTIONS = [
@@ -105,6 +111,7 @@ def save_game_config(
     except Exception as e:
         return f"❌ Error saving configuration: {str(e)}"
 
+
 async def start_game_with_settings(
     user_hash: str,
     setting_desc: str,
@@ -139,6 +146,8 @@ async def start_game_with_settings(
     )
 
     game_setting = GameSetting(character=character, setting=setting_desc, genre=genre)
+    
+    asyncio.create_task(start_music_generation(user_hash, "neutral"))
 
     # Запускаем LLM-граф для инициализации истории
     result = await process_step(
@@ -148,8 +157,6 @@ async def start_game_with_settings(
         character=game_setting.character.model_dump(),
         genre=game_setting.genre,
     )
-
-    asyncio.create_task(start_music_generation(user_hash, "neutral"))
 
     scene = result["scene"]
     scene_text = scene["description"]

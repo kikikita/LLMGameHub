@@ -43,6 +43,15 @@ def create_llm(
         top_p=top_p,
         thinking_budget=1024,
     )
+    
+    
+def create_light_llm(temperature: float = settings.temperature, top_p: float = settings.top_p):
+    return ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        google_api_key=_get_api_key(),
+        temperature=temperature,
+        top_p=top_p
+    )
 
 
 def create_precise_llm() -> ChatGoogleGenerativeAI:

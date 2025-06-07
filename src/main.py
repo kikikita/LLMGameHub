@@ -5,6 +5,8 @@ from audio.audio_generator import (
     cleanup_music_session,
 )
 import logging
+from agent.llm_agent import process_user_input
+from images.image_generator import modify_image
 from agent.runner import process_step
 import uuid
 from game_constructor import (
@@ -15,6 +17,9 @@ from game_constructor import (
     load_character_suggestion,
     start_game_with_settings,
 )
+import asyncio
+from game_setting import get_user_story
+from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +130,7 @@ with gr.Blocks(
     # Fullscreen Loading Indicator (hidden by default)
     with gr.Column(visible=False, elem_id="loading-indicator") as loading_indicator:
         gr.HTML("<div class='loading-text'>🚀 Starting your adventure...</div>")
-        
+
     local_storage = gr.BrowserState(str(uuid.uuid4()), "user_hash")
 
     # Constructor Interface (visible by default)

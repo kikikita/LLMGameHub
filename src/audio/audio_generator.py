@@ -13,10 +13,12 @@ logger = logging.getLogger(__name__)
 client = genai.Client(api_key=settings.gemini_api_key.get_secret_value(), http_options={'api_version': 'v1alpha'})
 
 async def generate_music(user_hash: str, music_tone: str, receive_audio):
-      async with (
+    if user_hash in sessions:
+        return
+    async with (
         client.aio.live.music.connect(model='models/lyria-realtime-exp') as session,
         asyncio.TaskGroup() as tg,
-      ):
+    ):
         # Set up task to receive server messages.
         tg.create_task(receive_audio(session, user_hash))
 
@@ -31,10 +33,9 @@ async def generate_music(user_hash: str, music_tone: str, receive_audio):
         )
         await session.play()
         logger.info(f"Started music generation for user hash {user_hash}, music tone: {music_tone}")
-        await cleanup_music_session(user_hash)
         sessions[user_hash] = {
             'session': session,
-            'queue': queue.Queue(maxsize=3)
+            'queue': queue.Queue()
         }
         
 async def change_music_tone(user_hash: str, new_tone):
@@ -43,7 +44,6 @@ async def change_music_tone(user_hash: str, new_tone):
     if not session:
         logger.error(f"No session found for user hash {user_hash}")
         return
-    await session.reset_context()
     await session.set_weighted_prompts(
         prompts=[types.WeightedPrompt(text=new_tone, weight=1.0)]
     )

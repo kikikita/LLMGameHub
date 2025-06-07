@@ -1,61 +1,73 @@
-"""Simple interface for querying the LLM directly."""
-
-import logging
-from typing import List, Optional
-
-from pydantic import BaseModel, Field
-
 from agent.llm import create_llm
+from pydantic import BaseModel, Field
+from typing import List
+import logging
+from agent.image_agent import ChangeScene
+import asyncio
+from agent.music_agent import generate_music_prompt
+from agent.image_agent import generate_image_prompt
+import uuid
 
 logger = logging.getLogger(__name__)
 
 
-class ChangeScene(BaseModel):
-    """Information about a scene change."""
-
-    change_scene: bool = Field(description="Whether the scene should change")
-    scene_description: Optional[str] = None
-
-
-class ChangeMusic(BaseModel):
-    """Information about a music change."""
-
-    change_music: bool = Field(description="Whether the music should change")
-    music_description: Optional[str] = None
-
-
 class PlayerOption(BaseModel):
-    """Single option for the player."""
-
     option_description: str = Field(
-        description=(
-            "Description of the option, e.g. '[Say] Hello!' "
-            "or 'Go to the forest'"
-        )
+        description="The description of the option, Examples: [Change location] Go to the forest; [Say] Hello!"
     )
 
 
 class LLMOutput(BaseModel):
-    """Expected structure returned by the LLM."""
-
-    change_scene: ChangeScene
-    change_music: ChangeMusic
     game_message: str = Field(
-        description=(
-            "Message shown to the player, e.g. 'You entered the forest...'"
-        )
+        description="The message to the player, Example: You entered the forest, and you see unknown scary creatures. What do you do?"
     )
     player_options: List[PlayerOption] = Field(
-        description="Up to three options for the player"
+        description="The list of up to 3 options for the player to choose from."
     )
 
 
-_llm = create_llm().with_structured_output(LLMOutput)
+class MultiAgentResponse(BaseModel):
+    game_message: str = Field(
+        description="The message to the player, Example: You entered the forest, and you see unknown scary creatures. What do you do?"
+    )
+    player_options: List[PlayerOption] = Field(
+        description="The list of up to 3 options for the player to choose from."
+    )
+    music_prompt: str = Field(description="The prompt for the music generation model.")
+    change_scene: ChangeScene = Field(description="The change to the scene.")
+
+llm = create_llm().with_structured_output(MultiAgentResponse)
 
 
-async def process_user_input(text: str) -> LLMOutput:
-    """Send user text to the LLM and return the parsed response."""
-    logger.info("User choice: %s", text)
-    response: LLMOutput = await _llm.ainvoke(text)
-    logger.info("LLM response: %s", response)
-    return response
+async def process_user_input(input: str) -> MultiAgentResponse:
+    """
+    Process user input and update the state.
+    """
+    request_id = str(uuid.uuid4())
+    logger.info(f"LLM input received: {request_id}")
+
+    response: LLMOutput = await llm.ainvoke(input)
+
+    # return response
+    current_state = f"""{input}
+    
+    Game reaction: {response.game_message}
+    Player options: {response.player_options}
+    """
+
+    music_prompt_task = generate_music_prompt(current_state, request_id)
+    
+    change_scene_task = generate_image_prompt(current_state, request_id)
+    
+    music_prompt, change_scene = await asyncio.gather(music_prompt_task, change_scene_task)
+
+    multi_agent_response = MultiAgentResponse(
+        game_message=response.game_message,
+        player_options=response.player_options,
+        music_prompt=music_prompt,
+        change_scene=change_scene,
+    )
+    
+    logger.info(f"LLM responded: {request_id}")
+
+    return multi_agent_response

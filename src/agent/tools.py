@@ -18,7 +18,8 @@ from agent.models import (
 )
 from agent.prompts import ENDING_CHECK_PROMPT, SCENE_PROMPT, STORY_FRAME_PROMPT
 from agent.state import get_user_state, set_user_state
-from images.image_generator import generate_image
+from images.image_generator import modify_image, generate_image
+from agent.image_agent import ChangeScene
 
 logger = logging.getLogger(__name__)
 
@@ -71,11 +72,9 @@ async def generate_scene(
     prompt = SCENE_PROMPT.format(
         lore=state.story_frame.lore,
         goal=state.story_frame.goal,
-        milestones=','.join(m.id for m in state.story_frame.milestones),
-        endings=','.join(e.id for e in state.story_frame.endings),
-        history='; '.join(
-            f"{c.scene_id}:{c.choice_text}" for c in state.user_choices
-        ),
+        milestones=",".join(m.id for m in state.story_frame.milestones),
+        endings=",".join(e.id for e in state.story_frame.endings),
+        history="; ".join(f"{c.scene_id}:{c.choice_text}" for c in state.user_choices),
         last_choice=last_choice,
     )
     resp: SceneLLM = await llm.ainvoke(prompt)
@@ -107,15 +106,22 @@ async def generate_scene(
 async def generate_scene_image(
     user_hash: Annotated[str, "User session ID"],
     scene_id: Annotated[str, "Scene ID"],
-    prompt: Annotated[str, "Prompt for image generation"],
+    change_scene: Annotated[ChangeScene, "Prompt for image generation"],
+    current_image: Annotated[str, "Current image"] | None = None,
 ) -> Annotated[str, "Path to generated image"]:
     """Generate an image for a scene and save the path in the state."""
     try:
-        image_path, _ = await generate_image(prompt)
+        image_path = current_image
+        if change_scene.change_scene == "change_completely" or change_scene.change_scene == "modify":
+            image_path, _ = await (
+                generate_image(change_scene.scene_description)
+                if current_image is None
+                # for now always modify the image to avoid the generating an update in a completely wrong style
+                else modify_image(current_image, change_scene.scene_description)
+            )
         state = get_user_state(user_hash)
         if scene_id in state.scenes:
             state.scenes[scene_id].image = image_path
-        state.assets[scene_id] = image_path
         set_user_state(user_hash, state)
         return image_path
     except Exception as exc:  # noqa: BLE001
@@ -152,14 +158,10 @@ async def check_ending(
     if not state.story_frame:
         return _err("No story frame")
     llm = create_llm().with_structured_output(EndingCheckResult)
-    history = '; '.join(
-        f"{c.scene_id}:{c.choice_text}" for c in state.user_choices
-    )
+    history = "; ".join(f"{c.scene_id}:{c.choice_text}" for c in state.user_choices)
     prompt = ENDING_CHECK_PROMPT.format(
         history=history,
-        endings=','.join(
-            f"{e.id}:{e.condition}" for e in state.story_frame.endings
-        ),
+        endings=",".join(f"{e.id}:{e.condition}" for e in state.story_frame.endings),
     )
     resp: EndingCheckResult = await llm.ainvoke(prompt)
     if resp.ending_reached and resp.ending:

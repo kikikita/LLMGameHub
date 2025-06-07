@@ -41,7 +41,8 @@ async def process_step(
     if ending and ending.get("ending_reached"):
         ending_info = ending["ending"]
         if (
-            ("description" not in ending_info or not ending_info["description"])
+            ("description" not in ending_info
+                or not ending_info["description"])
             and user_state.story_frame
         ):
             for e in user_state.story_frame.endings:
